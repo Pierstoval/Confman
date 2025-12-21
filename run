@@ -226,6 +226,7 @@ $app->addCommand(new Command('projects:git:fetch')->setCode(function (SymfonySty
     return Command::SUCCESS;
 }));
 $app->addCommand(new Command('projects:command:no-output')
+    ->setAliases(['command', 'command:all'])
     ->addArgument('arguments', InputArgument::IS_ARRAY)
     ->setDescription('Run a command on all projects, only checks whether commands succeeded.')
     ->setHelp(<<<HELP

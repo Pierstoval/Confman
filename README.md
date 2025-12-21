@@ -64,3 +64,32 @@ Detected projects file: /home/myself/ConfigManager/projects.json
  ---------------------- ----------------------------- ---------------- --------------------------- -------------------------------------
 
 ```
+
+### Run a particular command on **all** projects
+
+Run the `projects:list` or just `projects` command.
+
+## Helper/quick project commands
+
+### Git fetch
+
+Runs the `git fetch --all --prune` command on all projects in parallel.
+
+```
+❯ ./run proj:git:fetch
+
+Running /bin/git fetch --all --prune on all projects…
+-----------------------------------------------------
+
+ ---------------------- ----------------------------- ------------------
+  Project                Path                          Status
+ ---------------------- ----------------------------- ------------------
+  My Project             /home/myself/MyProject               ✅
+  My other project       /home/myself/MyOtherProject          ✅
+ ---------------------- ----------------------------- ------------------
+
+
+ [OK] Done!
+
+
+```
