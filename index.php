@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 use Symfony\Component\Console\Application;
@@ -68,6 +69,26 @@ class App extends Application {
         file_put_contents($path, $json);
     }
 
+    public function getProjectsFile(?string $path = null, bool $checkExists = true): string
+    {
+        if  (!$path) {
+            $path = __DIR__ . '/projects.json';
+        }
+        if ($checkExists && !is_file($path)) {
+            throw new \RuntimeException('No "projects.json" file found.');
+        }
+
+        return $path;
+    }
+
+    public function executeCommandOnProject(Project $project, array $command): string
+    {
+        $process = new Symfony\Component\Process\Process($command, $project->path);
+        $process->run();
+
+        return trim($process->getOutput(), " \n\r\t\v\0'\"");
+    }
+
     public function executeCommandOnAllProjects(array $command, SymfonyStyle $io, Cursor $cursor): void {
         $globalConfig = $this->getGlobalConfig();
 
@@ -132,28 +153,24 @@ class App extends Application {
             }
         }
     }
-
-    private function getProjectsFile(?string $path, bool $checkExists = true): string
-    {
-        if  (!$path) {
-            $path = __DIR__ . '/projects.json';
-        }
-        if ($checkExists && !is_file($path)) {
-            throw new \RuntimeException('No "projects.json" file found.');
-        }
-
-        return $path;
-    }
 }
 $app = new App();
-$app->addCommand(new Command('projects:list')->setCode(function (SymfonyStyle $io, Application $app): int {
+$app->addCommand(new Command('projects:list')
+    ->setDescription('Lists all currently configured projects')
+    ->setCode(function (SymfonyStyle $io, Application $app): int {
     /** @var App $app */
 
     $projects = $app->getGlobalConfig();
 
+    $io->section(sprintf('Detected projects file: <info>%s</>', $app->getProjectsFile()));
+
     $io->table(
-        ['Name', 'Path'],
-        array_map(static fn (Project $project) => [$project->name, $project->path], $projects->projects),
+        ['Name', 'Path', 'Current branch', 'Last commit date'],
+        array_map(static function (Project $project) use ($app, $io) {
+            $currentBranch = $app->executeCommandOnProject($project, ['git', 'branch', '--show-current']);
+            $lastCommitDate = $app->executeCommandOnProject($project, ['git', 'log', '-1', '--oneline', '--format="%ci"']);
+            return [$project->name, $project->path, $currentBranch, $lastCommitDate];
+        }, $projects->projects),
     );
 
     return Command::SUCCESS;
@@ -217,6 +234,7 @@ $app->addCommand(new Command('projects:command:no-output')
     To fix this, you must run the command this way:
 
     > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:no-output -- git fetch --all --prune</>
+
     HELP
     )
     ->setCode(function (InputInterface $input, SymfonyStyle $io, Cursor $cursor, Application $app): int {
