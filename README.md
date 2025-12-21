@@ -67,7 +67,26 @@ Detected projects file: /home/myself/ConfigManager/projects.json
 
 ### Run a particular command on **all** projects
 
-Run the `projects:list` or just `projects` command.
+Run the `projects:command:no-output` command or one of its aliases `command` or `command:all`.
+
+```
+❯ ./run projects:command:no-output -- git fetch --all --prune
+
+Running /bin/git fetch --all --prune on all projects…
+-----------------------------------------------------
+
+ ---------------------- ----------------------------- ------------------
+  Project                Path                          Status
+ ---------------------- ----------------------------- ------------------
+  My Project             /home/myself/MyProject               ✅
+  My other project       /home/myself/MyOtherProject          ✅
+ ---------------------- ----------------------------- ------------------
+
+
+ [OK] Done!
+
+
+```
 
 ## Helper/quick project commands
 
