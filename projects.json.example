@@ -2,7 +2,7 @@
   "projects": [
     {
       "name": "My Project",
-      "path": "/var/www/MyProject"
+      "path": "/home/myself/MyProject"
     }
   ]
 }

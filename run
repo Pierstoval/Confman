@@ -156,6 +156,7 @@ class App extends Application {
 }
 $app = new App();
 $app->addCommand(new Command('projects:list')
+    ->setAliases(['projects'])
     ->setDescription('Lists all currently configured projects')
     ->setCode(function (SymfonyStyle $io, Application $app): int {
     /** @var App $app */
@@ -165,17 +166,21 @@ $app->addCommand(new Command('projects:list')
     $io->section(sprintf('Detected projects file: <info>%s</>', $app->getProjectsFile()));
 
     $io->table(
-        ['Name', 'Path', 'Current branch', 'Last commit date'],
-        array_map(static function (Project $project) use ($app, $io) {
+        ['Name', 'Path', 'Current branch', 'Last commit date', 'Current remote URL'],
+        array_map(static function (Project $project) use ($app) {
             $currentBranch = $app->executeCommandOnProject($project, ['git', 'branch', '--show-current']);
             $lastCommitDate = $app->executeCommandOnProject($project, ['git', 'log', '-1', '--oneline', '--format="%ci"']);
-            return [$project->name, $project->path, $currentBranch, $lastCommitDate];
+            $currentRemote = $app->executeCommandOnProject($project, ['git', 'remote', 'show']);
+            $remoteUrl = $app->executeCommandOnProject($project, ['git', 'config', '--get', sprintf('remote.%s.url', $currentRemote)]);
+            return [$project->name, $project->path, $currentBranch, $lastCommitDate, $remoteUrl];
         }, $projects->projects),
     );
 
     return Command::SUCCESS;
 }));
-$app->addCommand(new Command('projects:add')->setCode(function (SymfonyStyle $io, Application $app): int {
+$app->addCommand(new Command('projects:add')
+    ->setAliases(['add'])
+    ->setCode(function (SymfonyStyle $io, Application $app): int {
     /** @var App $app */
 
     $git = $app->findExecutable('git');
@@ -203,6 +208,8 @@ $app->addCommand(new Command('projects:add')->setCode(function (SymfonyStyle $io
     $globalConfig = $globalConfig->withProject(new Project($name, $path));
 
     $app->saveProjects($globalConfig);
+
+    $io->success('Done!');
 
     return Command::SUCCESS;
 }));
