@@ -6,7 +6,8 @@
         "symfony/property-access": "^8.0",
         "phpdocumentor/reflection-docblock": "^5.6",
         "symfony/event-dispatcher": "^8.0",
-        "symfony/dependency-injection": "^8.0"
+        "symfony/dependency-injection": "^8.0",
+        "symfony/process": "^8.0"
     },
     "require-dev": {
         "symfony/var-dumper": "^8.0"
