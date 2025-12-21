@@ -3,11 +3,8 @@
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Cursor;
-use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\ConsoleOutput;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
@@ -23,6 +20,8 @@ use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
 require __DIR__.'/vendor/autoload.php';
+
+$PHPBIN = PHP_BINARY;
 
 class App extends Application {
     public readonly Serializer $serializer;
@@ -74,6 +73,7 @@ class App extends Application {
 
         $rows = [];
         $processes = [];
+        $errors = [];
 
         $io->section(sprintf('Running <info>%s</> on all projects…', implode(' ', $command)));
 
@@ -111,9 +111,11 @@ class App extends Application {
                     $rows[$projectName] = [$projectName, $project->path, str_pad('✅', 17, ' ', STR_PAD_BOTH)];
                     unset($processes[$projectName]);
                     $refresh = true;
-                } elseif ($process->isTerminated()) {
+                } elseif ($process->isTerminated() && $process->getExitCode() !== 0) {
                     $rows[$projectName] = [$projectName, $project->path, sprintf("❌ Error %s %s", $process->getExitCode(), $process->getExitCodeText())];
                     $refresh = true;
+                    unset($processes[$projectName]);
+                    $errors[$projectName] = \trim($process->getOutput()."\n".$process->getErrorOutput());
                 }
                 if ($refresh) {
                     $render($rows);
@@ -121,7 +123,14 @@ class App extends Application {
             }
         }
 
-        $io->success('Done!');
+        if (!count($errors)) {
+            $io->success('Done!');
+        } else {
+            foreach ($errors as $projectName => $message) {
+                $message = \trim($message);
+                $io->error(['Error in '.$projectName, ...[$message ? [$message] : []]]);
+            }
+        }
     }
 
     private function getProjectsFile(?string $path, bool $checkExists = true): string
@@ -192,9 +201,24 @@ $app->addCommand(new Command('projects:git:fetch')->setCode(function (SymfonySty
 
     return Command::SUCCESS;
 }));
-$app->addCommand(new Command('projects:command:all')
+$app->addCommand(new Command('projects:command:no-output')
     ->addArgument('arguments', InputArgument::IS_ARRAY)
-    ->setDescription('Run a command on all projects. You should add "--" before your command to make sure options do not create conflict')
+    ->setDescription('Run a command on all projects, only checks whether commands succeeded.')
+    ->setHelp(<<<HELP
+    You should add "<info>--</>" before your command to make sure options do not create conflict.
+    
+    For example, this command might return an error:
+    
+    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:no-output git fetch --all --prune</>
+    
+    The reason is that the "--all" and "--prune" are options, and they will automatically be interpreted
+    as options for the <comment>main</> command, not the one you delegate to projects.
+
+    To fix this, you must run the command this way:
+
+    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:no-output -- git fetch --all --prune</>
+    HELP
+    )
     ->setCode(function (InputInterface $input, SymfonyStyle $io, Cursor $cursor, Application $app): int {
     /** @var App $app */
 
