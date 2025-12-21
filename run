@@ -5,7 +5,10 @@ use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Cursor;
 use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
@@ -26,6 +29,9 @@ $PHPBIN = PHP_BINARY;
 
 class App extends Application {
     public readonly Serializer $serializer;
+    public ?string $configFilePath;
+    public ?GlobalConfig $config;
+    private SymfonyStyle $io;
 
     public function __construct()
     {
@@ -35,9 +41,12 @@ class App extends Application {
 
     public function getGlobalConfig(?string $path = null): GlobalConfig
     {
+        if (isset($this->config)) {
+            return $this->config;
+        }
         $path = $this->getProjectsFile($path);
 
-        return $this->serializer->deserialize(
+        return $this->config = $this->serializer->deserialize(
             data: file_get_contents($path),
             type: GlobalConfig::class,
             format: 'json',
@@ -57,28 +66,81 @@ class App extends Application {
         return $executable;
     }
 
-    public function saveProjects(GlobalConfig $projects, ?string $path = null): void
+    public function saveProjects(GlobalConfig $projects): void
     {
         $json = $this->serializer->serialize(
             data: $projects,
             format: 'json',
         );
 
-        $path = $this->getProjectsFile($path, false);
-
-        file_put_contents($path, $json);
+        file_put_contents($this->configFilePath, $json);
     }
 
-    public function getProjectsFile(?string $path = null, bool $checkExists = true): string
+    public function getProjectsFile(?string $inputPath = null): string
     {
-        if  (!$path) {
-            $path = __DIR__ . '/projects.json';
-        }
-        if ($checkExists && !is_file($path)) {
-            throw new \RuntimeException('No "projects.json" file found.');
+        if (isset($this->configFilePath)) {
+            return $this->configFilePath;
         }
 
-        return $path;
+        $allowedPaths = $this->getAllowedConfigPaths($inputPath);
+
+        foreach ($allowedPaths as $p) {
+            if (is_file($p)) {
+                $this->configFilePath = $p;
+                $this->io->section(sprintf("Detected config file at <info>%s</>", $p));
+                return $p;
+            }
+        }
+
+        $error = trim(sprintf(
+            <<<ERR
+            Config manager file was not found.
+            Looked in these paths:
+            %s
+            ERR
+            ,
+            '  - '.implode("\n  - ", $allowedPaths)
+        ));
+
+        if ($inputPath) {
+            throw new \RuntimeException($error);
+        }
+
+        $error .= "\n\nCreate any of these files to start configuring your setup 🚀";
+
+        $this->io->writeln(sprintf("\n<comment> %s</>\n", str_replace("\n", "\n ", $error)));
+        exit(2);
+    }
+
+    public function getAllowedConfigPaths(?string $path = null): array
+    {
+        if ($path) {
+            $path = rtrim($path, '\\/');
+        }
+        if ($path && is_dir($path)) {
+            $path .= '/config.json';
+        }
+
+        $allowedPaths = [];
+
+        if ($path) {
+            $allowedPaths[] = $path;
+        }
+
+        if ($path && ($_SERVER['HOME'] ?? '') && !is_file($path) && !str_contains($path, '/\\')) {
+            $testPath = rtrim($_SERVER['HOME'], '\\/').'/.config/ConfigManager/'.$path.'.json';
+            $allowedPaths[] = $testPath;
+        }
+
+        $allowedPaths[] = __DIR__ . '/config.json';
+        if (($cwd = getcwd()) !== false && $cwd !== __DIR__) {
+            $allowedPaths[] = rtrim($cwd, '\\/') . '/config.json';
+        }
+        if ($_SERVER['HOME'] ?? '') {
+            $allowedPaths[] = rtrim($_SERVER['HOME'], '\\/').'/.config/ConfigManager/config.json';
+        }
+
+        return $allowedPaths;
     }
 
     public function executeCommandOnProject(Project $project, array $command): string
@@ -89,18 +151,16 @@ class App extends Application {
         return trim($process->getOutput(), " \n\r\t\v\0'\"");
     }
 
-    public function executeCommandOnAllProjects(array $command, SymfonyStyle $io, Cursor $cursor): void {
+    public function executeCommandOnAllProjects(array $command, Cursor $cursor): void {
         $globalConfig = $this->getGlobalConfig();
 
         $rows = [];
         $processes = [];
         $errors = [];
 
-        $io->section(sprintf('Running <info>%s</> on all projects…', implode(' ', $command)));
+        $this->io->section(sprintf('Running <info>%s</> on all projects…', implode(' ', $command)));
 
-        $renderRows = static function ($rows) use ($io) {
-            $io->table(['Project', 'Path', 'Status'], $rows);
-        };
+        $renderRows = fn ($rows) => $this->io->table(['Project', 'Path', 'Status'], $rows);
 
         $render = static function($rows) use ($cursor, $renderRows) {
             foreach ($rows as $row) {
@@ -145,15 +205,33 @@ class App extends Application {
         }
 
         if (!count($errors)) {
-            $io->success('Done!');
+            $this->io->success('Done!');
         } else {
             foreach ($errors as $projectName => $message) {
                 $message = \trim($message);
-                $io->error(['Error in '.$projectName, ...[$message ? [$message] : []]]);
+                $this->io->error(['Error in '.$projectName, ...[$message ? [$message] : []]]);
             }
         }
     }
+
+    protected function getDefaultInputDefinition(): InputDefinition
+    {
+        $def = parent::getDefaultInputDefinition();
+
+        $def->addOption(new InputOption('config', 'c', InputOption::VALUE_OPTIONAL, 'Path to look for the "config.json" file. Can be a file or a directory.'));
+
+        return $def;
+    }
+
+    protected function doRunCommand(Command $command, InputInterface $input, OutputInterface $output): int
+    {
+        $this->io = new SymfonyStyle($input, $output);
+        $this->getProjectsFile($input->getOption('config'));
+
+        return parent::doRunCommand($command, $input, $output);
+    }
 }
+
 $app = new App();
 $app->addCommand(new Command('projects:list')
     ->setAliases(['projects'])
@@ -162,8 +240,6 @@ $app->addCommand(new Command('projects:list')
     /** @var App $app */
 
     $projects = $app->getGlobalConfig();
-
-    $io->section(sprintf('Detected projects file: <info>%s</>', $app->getProjectsFile()));
 
     $io->table(
         ['Name', 'Path', 'Current branch', 'Last commit date', 'Current remote URL'],
@@ -221,7 +297,7 @@ $app->addCommand(new Command('projects:git:fetch')->setCode(function (SymfonySty
         'fetch',
         '--all',
         '--prune',
-    ], $io, $cursor);
+    ], $cursor);
 
     return Command::SUCCESS;
 }));
@@ -254,7 +330,7 @@ $app->addCommand(new Command('projects:command:no-output')
         $command[0] = $app->findExecutable($command[0]);
     }
 
-    $app->executeCommandOnAllProjects($command, $io, $cursor);
+    $app->executeCommandOnAllProjects($command, $cursor);
 
     return Command::SUCCESS;
 }));

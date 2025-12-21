@@ -13,7 +13,7 @@ A command-line tool to manage different projects / repositories on your machine.
 
 - Clone the repo
 - Run the `composer install` command
-- Run the `cp projects.json.example projects.json` command
+- Run the `cp config.json.example config.json` command
 
 ## Usage
 
@@ -29,8 +29,8 @@ This tool uses the Symfony Console command. Meaning you can always use the `--he
 
 You have two choices:
 
-- Manually update the `projects.json` file and add a project.<br>Mandatory fields are `name` and `path` (for now, more might come in the future)
-- Run the `project:add` or `add` interactive command, it will update the `projects.json` file automatically
+- Manually update the `config.json` file and add a project.<br>Mandatory fields are `name` and `path` (for now, more might come in the future)
+- Run the `project:add` or `add` interactive command, it will update the `config.json` file automatically
 
 ```
  ❯ ./run projects:add
@@ -53,7 +53,7 @@ Run the `projects:list` or just `projects` command.
 ```
  ❯ ./run projects
 
-Detected projects file: /home/myself/ConfigManager/projects.json
+Detected projects file: /home/myself/ConfigManager/config.json
 ------------------------------------------------------------
 
  ---------------------- ----------------------------- ---------------- --------------------------- -------------------------------------
