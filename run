@@ -36,7 +36,7 @@ require __DIR__.'/vendor/autoload.php';
 
 $PHPBIN = PHP_BINARY;
 
-const APP_VERSION = 'v0.1.0';
+const APP_VERSION = 'v0.1.5';
 
 class App extends Application {
     public readonly Serializer $serializer;
@@ -106,48 +106,50 @@ class App extends Application {
         $error = trim(sprintf(
             <<<ERR
             Config manager file was not found.
-            Looked in these paths:
+            Searched in these paths:
             %s
             ERR
             ,
-            '  - '.implode("\n  - ", $allowedPaths)
+            implode("\n", array_map(static fn (string $path) => sprintf($inputPath ? ' - %s' : ' - <info>%s</>', $path), $allowedPaths))
         ));
 
         if ($inputPath) {
-            throw new \RuntimeException($error);
+            $this->io->error($error);
+        } else {
+            $error .= "\n\nCreate any of these files to start configuring your setup 🚀";
+
+            $this->io->writeln(sprintf("\n<comment> %s</>\n", str_replace("\n", "\n ", $error)));
         }
 
-        $error .= "\n\nCreate any of these files to start configuring your setup 🚀";
-
-        $this->io->writeln(sprintf("\n<comment> %s</>\n", str_replace("\n", "\n ", $error)));
         exit(2);
     }
 
-    public function getAllowedConfigPaths(?string $path = null): array
+    public function getAllowedConfigPaths(?string $inputPath = null): array
     {
-        if ($path) {
-            $path = rtrim($path, '\\/');
-        }
-        if ($path && is_dir($path)) {
-            $path .= '/config.json';
-        }
-
         $allowedPaths = [];
 
-        if ($path) {
-            $allowedPaths[] = $path;
+        if ($inputPath) {
+            $allowedPaths[] = getcwd().'/'.rtrim($inputPath, '\\/');
+            if (!str_ends_with($inputPath, '.json')) {
+                $allowedPaths[] = getcwd().'/'.rtrim($inputPath, '\\/').'.json';
+            }
+        }
+        if ($inputPath && is_dir($inputPath)) {
+            $allowedPaths[] = $inputPath . '/config.json';
         }
 
-        if ($path && ($_SERVER['HOME'] ?? '') && !is_file($path) && !str_contains($path, '/\\')) {
-            $testPath = rtrim($_SERVER['HOME'], '\\/').'/.config/ConfigManager/'.$path.'.json';
+        if ($inputPath && ($_SERVER['HOME'] ?? '') && !is_file($inputPath) && !str_contains($inputPath, '/\\')) {
+            $testPath = rtrim($_SERVER['HOME'], '\\/').'/.config/ConfigManager/'.$inputPath.'.json';
             $allowedPaths[] = $testPath;
         }
 
-        $allowedPaths[] = __DIR__ . '/config.json';
-        if (($cwd = getcwd()) !== false && $cwd !== __DIR__) {
+        if (!$inputPath) {
+            $allowedPaths[] = __DIR__ . '/config.json';
+        }
+        if (!$inputPath && ($cwd = getcwd()) !== false && $cwd !== __DIR__) {
             $allowedPaths[] = rtrim($cwd, '\\/') . '/config.json';
         }
-        if ($_SERVER['HOME'] ?? '') {
+        if (!$inputPath && ($_SERVER['HOME'] ?? '')) {
             $allowedPaths[] = rtrim($_SERVER['HOME'], '\\/').'/.config/ConfigManager/config.json';
         }
 

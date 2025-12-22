@@ -1,6 +1,6 @@
 {
   "main": "./run",
-  "output": "output/confman",
+  "output": "output/confman.phar",
   "chmod": "0744",
   "banner": [
     " This file is part of the ConfigManager project.",

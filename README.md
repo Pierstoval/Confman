@@ -6,14 +6,29 @@ A command-line tool to manage different projects / repositories on your machine.
 ## Requirements
 
 - PHP 8.4+
-- Composer
-- Ideally, using this tool on a Linux/Unix server
+
+For development (or to install from source):
+
+- [Composer](https://getcomposer.org/)
+- [Box](https://github.com/box-project/box) installed globally
+- Ideally, using this tool on a Linux/Unix server, 
 
 ## Install
 
-- Clone the repo
+### From source
+
+- Clone the repo with `git clone git@github.com:Pierstoval/Confman.git`
+- Go to the project's directory via `cd Confman`
 - Run the `composer install` command
-- Run the `cp config.json.example config.json` command
+- Run the `box compile` command
+- Your executable is in the `output/confman.phar` file 🚀
+
+### From latest releases
+
+- Go to the latest release: https://github.com/Pierstoval/Confman/releases/latest
+- Unwrap the `Assets` section
+- Download the `confman.phar` file
+- Save it in your computer 🚀
 
 ## Usage
 
