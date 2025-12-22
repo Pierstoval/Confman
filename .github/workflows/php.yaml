@@ -1,0 +1,35 @@
+name: php
+
+on:
+  release:
+
+jobs:
+  build:
+    name: Build project+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP with tools
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: box
+
+      - name: 🗃 Store artifacts (release only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: confman_artifacts
+          overwrite: true
+          path: |
+            output/confman
+
+      - name: Upload PHAR to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+            repo_token: ${{ secrets.GITHUB_TOKEN }}
+            file: output/confman
+            asset_name: confman
+            tag: ${{ github.ref_name }}
+            overwrite: true
+            file_glob: true

@@ -1,4 +1,14 @@
 {
+    "name": "pierstoval/confman",
+    "description": "CLI tool to manage multiple projects on the same machine",
+    "type": "project",
+    "license": "AGPL-3.0",
+    "authors": [
+        {
+            "name": "Alex \"Pierstoval\" Rock",
+            "email": "pierstoval@gmail.com"
+        }
+    ],
     "require": {
         "php": "^8.4",
         "symfony/console": "^8.0",

@@ -1,6 +1,15 @@
 #!/usr/bin/env php
 <?php
 
+/**
+ * This file is part of the ConfigManager project.
+ *
+ * (c) Alex "Pierstoval" Rock <pierstoval@gmail.com>
+ *
+ * This source file is subject to the AGPL-3.0 license that is bundled
+ * with this source code in the file LICENSE
+ */
+
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Cursor;
@@ -27,6 +36,8 @@ require __DIR__.'/vendor/autoload.php';
 
 $PHPBIN = PHP_BINARY;
 
+const APP_VERSION = 'v0.1.0';
+
 class App extends Application {
     public readonly Serializer $serializer;
     public ?string $configFilePath;
@@ -35,7 +46,7 @@ class App extends Application {
 
     public function __construct()
     {
-        parent::__construct('Global config', '0.1.0');
+        parent::__construct('Confman', APP_VERSION);
         $this->serializer = new Serializer([new ObjectNormalizer(classMetadataFactory: $metadataFactory = new ClassMetadataFactory(new AttributeLoader()), nameConverter: new MetadataAwareNameConverter($metadataFactory), propertyTypeExtractor: new PropertyInfoExtractor([], [new PhpDocExtractor(), new ReflectionExtractor()])), new ArrayDenormalizer()], [new JsonEncoder(defaultContext: [JsonEncode::OPTIONS => JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES])]);
     }
 

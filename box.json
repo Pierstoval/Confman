@@ -1,0 +1,13 @@
+{
+  "main": "./run",
+  "output": "output/confman",
+  "chmod": "0744",
+  "banner": [
+    " This file is part of the ConfigManager project.",
+    "",
+    " (c) Alex \"Pierstoval\" Rock <pierstoval@gmail.com>",
+    "",
+    " This source file is subject to the AGPL-3.0 license that is bundled",
+    " with this source code in the file LICENSE"
+  ]
+}
