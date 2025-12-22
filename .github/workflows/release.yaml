@@ -37,6 +37,14 @@ jobs:
           php-version: '8.4'
           tools: box
 
+      - name: Install
+        run: |
+          composer install --no-dev --classmap-authoritative
+
+      - name: Build PHAR
+        run: |
+          box compile
+
       - name: 🗃 Store artifacts (release only)
         uses: actions/upload-artifact@v4
         with:
