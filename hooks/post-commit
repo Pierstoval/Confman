@@ -1,0 +1,29 @@
+#!/bin/bash
+
+if [[ ! -f tagname ]]; then
+    echo "Could not find tag file. Could not make release."
+    exit 1
+fi
+
+tagname=$(cat tagname | tr "'" "\'")
+rm tagname
+
+out=$(php -r 'echo preg_match("~^v\d+\.\d+\.\d+$~iUu", $argv[1] ?? "") ? "1" : "0";' "$tagname")
+
+if [[ "$out" != "1" && "$out" != "0" ]]; then
+  echo "Tag check did not work properly."
+  exit 1
+fi
+
+if [[ "$out" == "0" ]]; then
+  echo "Saved tag is not valid: '$tagname'"
+  echo "Expected a format like this: v0.1.0"
+  exit 1
+fi
+
+git add run
+git commit --amend --no-edit --no-verify
+
+git tag -m "$tagname" "$tagname"
+
+echo "Created tag '$tagname' successfully! ✅"
