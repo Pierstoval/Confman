@@ -68,7 +68,7 @@ Run the `projects:list` or just `projects` command.
 ```
  ❯ ./run projects
 
-Detected projects file: /home/myself/ConfigManager/config.json
+Detected projects file: /home/myself/Confman/config.json
 ------------------------------------------------------------
 
  ---------------------- ----------------------------- ---------------- --------------------------- -------------------------------------

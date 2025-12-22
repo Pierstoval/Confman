@@ -2,7 +2,7 @@
 <?php
 
 /**
- * This file is part of the ConfigManager project.
+ * This file is part of the Confman project.
  *
  * (c) Alex "Pierstoval" Rock <pierstoval@gmail.com>
  *
@@ -139,7 +139,7 @@ class App extends Application {
         }
 
         if ($inputPath && ($_SERVER['HOME'] ?? '') && !is_file($inputPath) && !str_contains($inputPath, '/\\')) {
-            $testPath = rtrim($_SERVER['HOME'], '\\/').'/.config/ConfigManager/'.$inputPath.'.json';
+            $testPath = rtrim($_SERVER['HOME'], '\\/').'/.config/Confman/'.$inputPath.'.json';
             $allowedPaths[] = $testPath;
         }
 
@@ -150,7 +150,7 @@ class App extends Application {
             $allowedPaths[] = rtrim($cwd, '\\/') . '/config.json';
         }
         if (!$inputPath && ($_SERVER['HOME'] ?? '')) {
-            $allowedPaths[] = rtrim($_SERVER['HOME'], '\\/').'/.config/ConfigManager/config.json';
+            $allowedPaths[] = rtrim($_SERVER['HOME'], '\\/').'/.config/Confman/config.json';
         }
 
         return $allowedPaths;
@@ -239,7 +239,10 @@ class App extends Application {
     protected function doRunCommand(Command $command, InputInterface $input, OutputInterface $output): int
     {
         $this->io = new SymfonyStyle($input, $output);
-        $this->getProjectsFile($input->getOption('config'));
+
+        if ($input->hasOption('config') && $input->getOption('config')) {
+            $this->getProjectsFile($input->getOption('config'));
+        }
 
         return parent::doRunCommand($command, $input, $output);
     }
