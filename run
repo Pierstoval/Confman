@@ -59,8 +59,13 @@ class App extends Application {
 
         $path = $this->getProjectsFile($path);
 
+        $content = file_get_contents($path);
+        if (!trim($content)) {
+            $content = '{}'; // Makes sure empty files work too.
+        }
+
         return $this->config = $this->serializer->deserialize(
-            data: file_get_contents($path),
+            data: $content,
             type: GlobalConfig::class,
             format: 'json',
         );
@@ -156,6 +161,11 @@ class App extends Application {
         if (!$inputPath && ($_SERVER['HOME'] ?? '')) {
             $allowedPaths[] = rtrim($_SERVER['HOME'], '\\/').'/.config/Confman/confman.json';
         }
+        foreach ($allowedPaths as $k => $path) {
+            if (str_starts_with($path, 'phar://')) {
+                unset($allowedPaths[$k]);
+            }
+        }
 
         return $allowedPaths;
     }
@@ -168,12 +178,13 @@ class App extends Application {
         return trim($process->getOutput(), " \n\r\t\v\0'\"");
     }
 
-    public function executeCommandOnAllProjects(array $command, Cursor $cursor): void {
+    public function executeCommandOnAllProjects(array $command, Cursor $cursor, bool $showOutput = false): void {
         $globalConfig = $this->getGlobalConfig();
 
         $rows = [];
         $processes = [];
         $errors = [];
+        $outputs = [];
 
         $this->io->section(sprintf('Running <info>%s</> on all projects…', implode(' ', $command)));
 
@@ -196,7 +207,21 @@ class App extends Application {
         foreach ($globalConfig->projects as $project) {
             $rows[$project->name] = [$project->name, $project->path, 'Command started…'];
             $process = new Symfony\Component\Process\Process($command, $project->path);
-            $process->start();
+            $process->start(static function ($type, $data) use (&$errors, &$outputs, $project) {
+                if ($type === 'err') {
+                    if (!isset($errors[$project->name])) {
+                        $errors[$project->name] = '';
+                    }
+
+                    $errors[$project->name] .= $data;
+                } else {
+                    if (!isset($outputs[$project->name])) {
+                        $outputs[$project->name] = '';
+                    }
+
+                    $outputs[$project->name] .= $data;
+                }
+            });
             $processes[$project->name] = $process;
         }
         $render($rows);
@@ -213,7 +238,6 @@ class App extends Application {
                     $rows[$projectName] = [$projectName, $project->path, sprintf("❌ Error %s %s", $process->getExitCode(), $process->getExitCodeText())];
                     $refresh = true;
                     unset($processes[$projectName]);
-                    $errors[$projectName] = \trim($process->getOutput()."\n".$process->getErrorOutput());
                 }
                 if ($refresh) {
                     $render($rows);
@@ -222,11 +246,26 @@ class App extends Application {
         }
 
         if (!count($errors)) {
+            if ($showOutput) {
+                foreach ($outputs as $projectName => $output) {
+                    if (!trim($output)) {
+                        break;
+                    }
+                    $this->io->section(sprintf(" ➡️ Output for project %s:", $projectName));
+                    $this->io->writeln($output);
+                }
+            }
+
             $this->io->success('Done!');
         } else {
-            foreach ($errors as $projectName => $message) {
-                $message = \trim($message);
-                $this->io->error(['Error in '.$projectName, ...[$message ? [$message] : []]]);
+            foreach ($errors as $projectName => $output) {
+                $messages = [
+                    'Error in '.$projectName,
+                ];
+                if (trim($output)) {
+                    $messages[] = ' > '.$output;
+                }
+                $this->io->error(implode("\n", $messages));
             }
         }
     }
@@ -361,38 +400,32 @@ $app->addCommand(new Command('projects:add')
     return Command::SUCCESS;
 }));
 
-$app->addCommand(new Command('projects:git:fetch')
-    ->setAliases(['git:fetch'])
-    ->setCode(function (SymfonyStyle $io, Cursor $cursor, Application $app): int {
-    /** @var App $app */
-
-    $app->executeCommandOnAllProjects([
-        $app->findExecutable('git'),
-        'fetch',
-        '--all',
-        '--prune',
-    ], $cursor);
-
-    return Command::SUCCESS;
-}));
-
-$app->addCommand(new Command('projects:command:no-output')
+$app->addCommand(new Command('projects:command:all')
     ->setAliases(['command', 'command:all'])
     ->addArgument('arguments', InputArgument::IS_ARRAY)
-    ->setDescription('Run a command on all projects, only checks whether commands succeeded.')
+    ->addOption('show-output', 's', InputOption::VALUE_NONE, 'Display command output for each execution after running all commands')
+    ->setDescription('Run a command on all projects.')
     ->setHelp(<<<HELP
     You should add "<info>--</>" before your command to make sure options do not create conflict.
     
     For example, this command might return an error:
     
-    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:no-output git fetch --all --prune</>
+    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:all git fetch --all --prune</>
     
     The reason is that the "--all" and "--prune" are options, and they will automatically be interpreted
-    as options for the <comment>main</> command, not the one you delegate to projects.
+    as options for the <comment>main command</>, not the one you delegate to projects.
 
     To fix this, you must run the command this way:
 
-    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:no-output -- git fetch --all --prune</>
+    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:all -- git fetch --all --prune</>
+
+    You can use the "<comment>--show-output</>" option to display the output of all commands after the execution:
+
+    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:all --show-status -- git status</>
+    
+    Or with its "<comment>-s</>" short version:
+    
+    > <info>{$PHPBIN} {$_SERVER['PHP_SELF']} projects:command:all -s -- git status</>
 
     HELP
     )
@@ -405,7 +438,22 @@ $app->addCommand(new Command('projects:command:no-output')
         $command[0] = $app->findExecutable($command[0]);
     }
 
-    $app->executeCommandOnAllProjects($command, $cursor);
+    $app->executeCommandOnAllProjects($command, $cursor, $input->getOption('show-output'));
+
+    return Command::SUCCESS;
+}));
+
+$app->addCommand(new Command('projects:git:fetch')
+    ->setAliases(['git:fetch'])
+    ->setCode(function (SymfonyStyle $io, Cursor $cursor, Application $app): int {
+    /** @var App $app */
+
+    $app->executeCommandOnAllProjects([
+        $app->findExecutable('git'),
+        'fetch',
+        '--all',
+        '--prune',
+    ], $cursor);
 
     return Command::SUCCESS;
 }));

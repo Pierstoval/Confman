@@ -36,9 +36,44 @@ Everything is set in the `run` PHP file.
 
 You can either use `./run` or `php run` to execute it.
 
+If you install it globally, you can rename the file to `confman` and add it somewhere accessible via your `PATH` environment variable.
+
 ### Tips
 
-This tool uses the Symfony Console command. Meaning you can always use the `--help` option on **any** command to get information about it, and you can always use the `list` command to get the list of all available commands.
+- This tool uses the Symfony Console command. Meaning you can always use the `--help` option on **any** command to get information about it, and you can always use the `list` command to get the list of all available commands.
+- Use the `-c`/`--config` option to create several configs. It can be useful when running similar commands on projects with the same stack. You can, for instance, create a `npm` category for all projects using NPM as package manager, or `php` for projects using Composer.
+
+### Create configuration files
+
+You cannot use Confman is there is no configuration file for a project.
+
+To create a config file, you have several options:
+
+- Create a `confman.json` with empty content, either:
+  - In the current directory
+  - In the `$HOME/.config/Confman/` directory
+- Run the `confman create` command
+
+The `confman create` command suggest accessible directories from your current execution path.
+
+You can also **categorize** config files, so you can have multiple "projects", by using the `-c`/`--config` option.
+
+Examples:
+
+```
+ > confman create
+
+ Where do you want to create the config file?:
+  [0] /home/my-user/current_directory/confman.json
+  [1] /home/my-user/.config/Confman/confman.json
+ > 
+ > confman create -c some_category
+
+ Where do you want to create the config file?:
+  [0] /home/my-user/current_directory/some_category.json
+  [1] /home/my-user/.config/Confman/some_category.json
+ > 
+```
 
 ### Add a new project to the list
 
@@ -48,7 +83,7 @@ You have two choices:
 - Run the `project:add` or `add` interactive command, it will update the `confman.json` file automatically
 
 ```
- ❯ ./run projects:add
+ > confman projects:add
 
  Project name?:
  > MyProject
@@ -61,12 +96,21 @@ You have two choices:
 
 ```
 
+Or by directly adding the `name` and `path` as arguments:
+
+```
+ > confman projects:add MyProject /var/www/html/my-project
+
+ [OK] Done!
+
+```
+
 ### List all projects
 
 Run the `projects:list` or just `projects` command.
 
 ```
- ❯ ./run projects
+ > confman projects
 
 Detected projects file: /home/myself/Confman/confman.json
 ------------------------------------------------------------
@@ -82,10 +126,10 @@ Detected projects file: /home/myself/Confman/confman.json
 
 ### Run a particular command on **all** projects
 
-Run the `projects:command:no-output` command or one of its aliases `command` or `command:all`.
+Run the `projects:command:all` command or one of its aliases `command` or `command:all`.
 
 ```
-❯ ./run projects:command:no-output -- git fetch --all --prune
+> confman projects:command:all -- git fetch --all --prune
 
 Running /bin/git fetch --all --prune on all projects…
 -----------------------------------------------------
@@ -110,7 +154,7 @@ Running /bin/git fetch --all --prune on all projects…
 Runs the `git fetch --all --prune` command on all projects in parallel.
 
 ```
-❯ ./run proj:git:fetch
+> confman proj:git:fetch
 
 Running /bin/git fetch --all --prune on all projects…
 -----------------------------------------------------
