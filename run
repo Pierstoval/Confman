@@ -25,6 +25,7 @@ use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
 use Symfony\Component\Serializer\Encoder\JsonEncode;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Exception\ExceptionInterface;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
 use Symfony\Component\Serializer\Mapping\Loader\AttributeLoader;
 use Symfony\Component\Serializer\NameConverter\MetadataAwareNameConverter;
@@ -55,6 +56,7 @@ class App extends Application {
         if (isset($this->config)) {
             return $this->config;
         }
+
         $path = $this->getProjectsFile($path);
 
         return $this->config = $this->serializer->deserialize(
@@ -272,26 +274,40 @@ $app->addCommand(new Command('projects:list')
 }));
 $app->addCommand(new Command('projects:add')
     ->setAliases(['add'])
-    ->setCode(function (SymfonyStyle $io, Application $app): int {
+    ->addArgument('name', InputArgument::OPTIONAL)
+    ->addArgument('path', InputArgument::OPTIONAL)
+    ->setCode(function (InputInterface $input, SymfonyStyle $io, Application $app): int {
     /** @var App $app */
 
     $git = $app->findExecutable('git');
 
-    $name = $io->ask('Project name?');
+    $name = $input->getArgument('name') ?: $io->ask('Project name?');
+    $argPath = $input->getArgument('path');
+    $argPathValidated = false;
     do {
-        $path = $io->ask('Path?');
+        $path = $argPath && !$argPathValidated ? $argPath : $io->ask('Path?');
+        $argPathValidated = true;
+
         if (!$path) {
-            $io->warning('Please specify a directory.');
-        } elseif (!is_dir($path)) {
-            $io->warning('Specified path is not a valid directory.');
+            $io->error('Please specify a directory.');
+            continue;
+        }
+
+        if (isset($_SERVER['HOME']) && str_contains($path, '~')) {
+            $path = str_replace('~', $_SERVER['HOME'], $path);
+        }
+
+        if (!is_dir($path)) {
+            $io->error('Specified path is not a valid directory.');
             $path = null;
-        } else {
-            $process = new Symfony\Component\Process\Process([$git, 'status', '--porcelain'], $path);
-            $exitCode = $process->run();
-            if ($exitCode !== 0) {
-                $io->warning(sprintf('Directory %sdoes not seem to be a valid git repository.', $path));
-                $path = null;
-            }
+            continue;
+        }
+
+        $process = new Symfony\Component\Process\Process([$git, 'status', '--porcelain'], $path);
+        $exitCode = $process->run();
+        if ($exitCode !== 0) {
+            $io->error(sprintf('Directory %sdoes not seem to be a valid git repository.', $path));
+            $path = null;
         }
     } while (!$path);
 
@@ -357,12 +373,20 @@ readonly class GlobalConfig
 {
     public function __construct(
         /** @var array<Project> */
-        public array $projects,
+        public array $projects = [],
     ) {
     }
 
     public function withProject(Project $project): self
     {
+        foreach ($this->projects as $existing) {
+            if ($existing->name === $project->name) {
+                throw new \RuntimeException('Project with same name already exists.');
+            }
+            if (realpath($existing->path) === realpath($project->path)) {
+                throw new \RuntimeException('Project with same path already exists.');
+            }
+        }
         $projects = $this->projects;
         $projects[] = $project;
 
