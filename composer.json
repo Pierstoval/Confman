@@ -23,6 +23,11 @@
             "[ -f .git/hooks/post-commit ] || ln -s $(pwd)/hooks/post-commit .git/hooks/post-commit"
         ]
     },
+    "config": {
+        "platform": {
+            "php": "8.4"
+        }
+    },
     "require-dev": {
         "symfony/var-dumper": "^8.0"
     }
