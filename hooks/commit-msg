@@ -7,7 +7,7 @@ if (!isset($argv[1]) || !is_file($argv[1])) {
 }
 
 $commitMsg = file_get_contents($argv[1]);
-if (!preg_match('~(tag|release) +v?(?<tag>\d+\.\d+\.\d+)~iUu', $commitMsg, $matches)) {
+if (!preg_match('~(tag|release) +v?(?<tag>\d+\.\d+\.\d+)~iu', $commitMsg, $matches)) {
     // Not a tag.
     return;
 }
