@@ -37,7 +37,7 @@ require __DIR__.'/vendor/autoload.php';
 
 $PHPBIN = PHP_BINARY;
 
-const APP_VERSION = 'v0.1.7';
+const APP_VERSION = 'v0.1.8';
 
 class App extends Application {
     public readonly Serializer $serializer;
