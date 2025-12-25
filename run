@@ -361,7 +361,9 @@ $app->addCommand(new Command('projects:add')
     return Command::SUCCESS;
 }));
 
-$app->addCommand(new Command('projects:git:fetch')->setCode(function (SymfonyStyle $io, Cursor $cursor, Application $app): int {
+$app->addCommand(new Command('projects:git:fetch')
+    ->setAliases(['git:fetch'])
+    ->setCode(function (SymfonyStyle $io, Cursor $cursor, Application $app): int {
     /** @var App $app */
 
     $app->executeCommandOnAllProjects([
