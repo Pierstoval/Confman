@@ -44,8 +44,8 @@ This tool uses the Symfony Console command. Meaning you can always use the `--he
 
 You have two choices:
 
-- Manually update the `config.json` file and add a project.<br>Mandatory fields are `name` and `path` (for now, more might come in the future)
-- Run the `project:add` or `add` interactive command, it will update the `config.json` file automatically
+- Manually update the `confman.json` file and add a project.<br>Mandatory fields are `name` and `path` (for now, more might come in the future)
+- Run the `project:add` or `add` interactive command, it will update the `confman.json` file automatically
 
 ```
  ❯ ./run projects:add
@@ -68,7 +68,7 @@ Run the `projects:list` or just `projects` command.
 ```
  ❯ ./run projects
 
-Detected projects file: /home/myself/Confman/config.json
+Detected projects file: /home/myself/Confman/confman.json
 ------------------------------------------------------------
 
  ---------------------- ----------------------------- ---------------- --------------------------- -------------------------------------

@@ -131,13 +131,15 @@ class App extends Application {
         $allowedPaths = [];
 
         if ($inputPath) {
-            $allowedPaths[] = getcwd().'/'.rtrim($inputPath, '\\/');
+            if (file_exists($inputPath)) {
+                $allowedPaths[] = $inputPath;
+            }
             if (!str_ends_with($inputPath, '.json')) {
                 $allowedPaths[] = getcwd().'/'.rtrim($inputPath, '\\/').'.json';
             }
         }
         if ($inputPath && is_dir($inputPath)) {
-            $allowedPaths[] = $inputPath . '/config.json';
+            $allowedPaths[] = $inputPath . '/confman.json';
         }
 
         if ($inputPath && ($_SERVER['HOME'] ?? '') && !is_file($inputPath) && !str_contains($inputPath, '/\\')) {
@@ -146,13 +148,13 @@ class App extends Application {
         }
 
         if (!$inputPath) {
-            $allowedPaths[] = __DIR__ . '/config.json';
+            $allowedPaths[] = __DIR__ . '/confman.json';
         }
         if (!$inputPath && ($cwd = getcwd()) !== false && $cwd !== __DIR__) {
-            $allowedPaths[] = rtrim($cwd, '\\/') . '/config.json';
+            $allowedPaths[] = rtrim($cwd, '\\/') . '/confman.json';
         }
         if (!$inputPath && ($_SERVER['HOME'] ?? '')) {
-            $allowedPaths[] = rtrim($_SERVER['HOME'], '\\/').'/.config/Confman/config.json';
+            $allowedPaths[] = rtrim($_SERVER['HOME'], '\\/').'/.config/Confman/confman.json';
         }
 
         return $allowedPaths;
@@ -233,7 +235,7 @@ class App extends Application {
     {
         $def = parent::getDefaultInputDefinition();
 
-        $def->addOption(new InputOption('config', 'c', InputOption::VALUE_OPTIONAL, 'Path to look for the "config.json" file. Can be a file or a directory.'));
+        $def->addOption(new InputOption('config', 'c', InputOption::VALUE_OPTIONAL, 'Path to look for the "confman.json" file. Can be a file or a directory.'));
 
         return $def;
     }
@@ -242,7 +244,11 @@ class App extends Application {
     {
         $this->io = new SymfonyStyle($input, $output);
 
-        if ($input->hasOption('config') && $input->getOption('config')) {
+        if (
+            $command->getName() !== 'projects:create'
+            && $input->hasOption('config')
+            && $input->getOption('config')
+        ) {
             $this->getProjectsFile($input->getOption('config'));
         }
 
@@ -251,6 +257,7 @@ class App extends Application {
 }
 
 $app = new App();
+
 $app->addCommand(new Command('projects:list')
     ->setAliases(['projects'])
     ->setDescription('Lists all currently configured projects')
@@ -272,6 +279,38 @@ $app->addCommand(new Command('projects:list')
 
     return Command::SUCCESS;
 }));
+
+$app->addCommand(new Command('projects:create'))
+    ->setAliases(['create'])
+    ->setDescription('Create a new configuration file')
+    ->setCode(function (SymfonyStyle $io, InputInterface $input, Application $app): int {
+    /** @var App $app */
+
+    $files = $app->getAllowedConfigPaths($input->hasOption('config') ? $input->getOption('config') : null);
+
+    $filename = $io->choice('Where do you want to create the config file?', $files);
+
+    if (is_file($filename)) {
+        throw new \RuntimeException(sprintf('File "%s" already exists.', $filename));
+    }
+
+    $dir = dirname($filename);
+    if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+        throw new \RuntimeException(sprintf('An error occurred when creating "%s" directory.', $dir));
+    }
+
+    $defaultContent = <<<JSON
+    {
+    }
+    JSON;
+
+    if (false === file_put_contents($filename, $defaultContent)) {
+        throw new \RuntimeException('An error occurred when creating config file.');
+    }
+
+    return Command::SUCCESS;
+});
+
 $app->addCommand(new Command('projects:add')
     ->setAliases(['add'])
     ->addArgument('name', InputArgument::OPTIONAL)
@@ -321,6 +360,7 @@ $app->addCommand(new Command('projects:add')
 
     return Command::SUCCESS;
 }));
+
 $app->addCommand(new Command('projects:git:fetch')->setCode(function (SymfonyStyle $io, Cursor $cursor, Application $app): int {
     /** @var App $app */
 
@@ -333,6 +373,7 @@ $app->addCommand(new Command('projects:git:fetch')->setCode(function (SymfonySty
 
     return Command::SUCCESS;
 }));
+
 $app->addCommand(new Command('projects:command:no-output')
     ->setAliases(['command', 'command:all'])
     ->addArgument('arguments', InputArgument::IS_ARRAY)
