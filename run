@@ -11,6 +11,8 @@
  */
 
 use Symfony\Component\Console\Application;
+use Symfony\Component\Console\ArgumentResolver\ArgumentResolver;
+use Symfony\Component\Console\ArgumentResolver\ValueResolver\FixedValueResolver;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Cursor;
 use Symfony\Component\Console\Input\InputArgument;
@@ -25,7 +27,6 @@ use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
 use Symfony\Component\Serializer\Encoder\JsonEncode;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
-use Symfony\Component\Serializer\Exception\ExceptionInterface;
 use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
 use Symfony\Component\Serializer\Mapping\Loader\AttributeLoader;
 use Symfony\Component\Serializer\NameConverter\MetadataAwareNameConverter;
@@ -48,6 +49,13 @@ class App extends Application {
     public function __construct()
     {
         parent::__construct('Confman', APP_VERSION);
+        if (!$this->getArgumentResolver()) {
+            $this->setArgumentResolver(new ArgumentResolver([
+                ...ArgumentResolver::getDefaultArgumentValueResolvers(),
+                new FixedValueResolver(fn () => $this->getGlobalConfig(), GlobalConfig::class, 'projects'),
+                new FixedValueResolver($this, self::class),
+            ]));
+        }
         $this->serializer = new Serializer([new ObjectNormalizer(classMetadataFactory: $metadataFactory = new ClassMetadataFactory(new AttributeLoader()), nameConverter: new MetadataAwareNameConverter($metadataFactory), propertyTypeExtractor: new PropertyInfoExtractor([], [new PhpDocExtractor(), new ReflectionExtractor()])), new ArrayDenormalizer()], [new JsonEncoder(defaultContext: [JsonEncode::OPTIONS => JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES])]);
     }
 
@@ -300,11 +308,7 @@ $app = new App();
 $app->addCommand(new Command('projects:list')
     ->setAliases(['projects'])
     ->setDescription('Lists all currently configured projects')
-    ->setCode(function (SymfonyStyle $io, Application $app): int {
-    /** @var App $app */
-
-    $projects = $app->getGlobalConfig();
-
+    ->setCode(function (SymfonyStyle $io, GlobalConfig $projects, App $app): int {
     $io->table(
         ['Name', 'Path', 'Current branch', 'Last commit date', 'Current remote URL'],
         array_map(static function (Project $project) use ($app) {
@@ -322,9 +326,7 @@ $app->addCommand(new Command('projects:list')
 $app->addCommand(new Command('projects:create'))
     ->setAliases(['create'])
     ->setDescription('Create a new configuration file')
-    ->setCode(function (SymfonyStyle $io, InputInterface $input, Application $app): int {
-    /** @var App $app */
-
+    ->setCode(function (SymfonyStyle $io, InputInterface $input, App $app): int {
     $files = $app->getAllowedConfigPaths($input->hasOption('config') ? $input->getOption('config') : null);
 
     $filename = $io->choice('Where do you want to create the config file?', $files);
@@ -354,9 +356,7 @@ $app->addCommand(new Command('projects:add')
     ->setAliases(['add'])
     ->addArgument('name', InputArgument::OPTIONAL)
     ->addArgument('path', InputArgument::OPTIONAL)
-    ->setCode(function (InputInterface $input, SymfonyStyle $io, Application $app): int {
-    /** @var App $app */
-
+    ->setCode(function (InputInterface $input, SymfonyStyle $io, App $app): int {
     $git = $app->findExecutable('git');
 
     $name = $input->getArgument('name') ?: $io->ask('Project name?');
@@ -429,9 +429,7 @@ $app->addCommand(new Command('projects:command:all')
 
     HELP
     )
-    ->setCode(function (InputInterface $input, SymfonyStyle $io, Cursor $cursor, Application $app): int {
-    /** @var App $app */
-
+    ->setCode(function (InputInterface $input, SymfonyStyle $io, Cursor $cursor, App $app): int {
     $command = $input->getArgument('arguments');
 
     if (!is_file($command[0])) {
@@ -445,9 +443,7 @@ $app->addCommand(new Command('projects:command:all')
 
 $app->addCommand(new Command('projects:git:fetch')
     ->setAliases(['git:fetch'])
-    ->setCode(function (SymfonyStyle $io, Cursor $cursor, Application $app): int {
-    /** @var App $app */
-
+    ->setCode(function (SymfonyStyle $io, Cursor $cursor, App $app): int {
     $app->executeCommandOnAllProjects([
         $app->findExecutable('git'),
         'fetch',
