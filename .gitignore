@@ -1,3 +1,5 @@
 vendor
 confman.json
 output
+test/configs/
+!test/configs/.gitkeep
