@@ -9,6 +9,11 @@
             "email": "pierstoval@gmail.com"
         }
     ],
+    "autoload": {
+        "psr-4": {
+            "Pierstoval\\Confman\\": "src/"
+        }
+    },
     "require": {
         "php": "^8.4",
         "symfony/console": "^8.0",

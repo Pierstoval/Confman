@@ -1,5 +1,10 @@
 {
   "main": "./run",
+  "stub": true,
+  "directories": [
+    "src/",
+    "vendor/"
+  ],
   "output": "output/confman.phar",
   "chmod": "0744",
   "banner": [
